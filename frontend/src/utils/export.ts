@@ -8,15 +8,19 @@ export interface BackupPayload {
   morphs: unknown[];
   sites: unknown[];
   sessions: unknown[];
+  archives?: unknown[];
+  syncItems?: unknown[];
 }
 
 /** 汇总全部本地表为 JSON 备份（schema 迁移前先导出） */
 export async function buildBackup(): Promise<BackupPayload> {
-  const [rings, morphs, sites, sessions] = await Promise.all([
+  const [rings, morphs, sites, sessions, archives, syncItems] = await Promise.all([
     db.rings.toArray(),
     db.morphs.toArray(),
     db.sites.toArray(),
     db.sessions.toArray(),
+    db.archives.toArray(),
+    db.syncItems.toArray(),
   ]);
   return {
     app: 'gbbirdring',
@@ -26,6 +30,8 @@ export async function buildBackup(): Promise<BackupPayload> {
     morphs,
     sites,
     sessions,
+    archives,
+    syncItems,
   };
 }
 
@@ -70,12 +76,24 @@ export async function importBackup(text: string): Promise<{ rings: number; morph
     sites: payload.sites?.length ?? 0,
     sessions: payload.sessions?.length ?? 0,
   };
-  await db.transaction('rw', db.rings, db.morphs, db.sites, db.sessions, async () => {
-    await Promise.all([db.rings.clear(), db.morphs.clear(), db.sites.clear(), db.sessions.clear()]);
+  await db.transaction(
+    'rw',
+    [db.rings, db.morphs, db.sites, db.sessions, db.archives, db.syncItems],
+    async () => {
+    await Promise.all([
+      db.rings.clear(),
+      db.morphs.clear(),
+      db.sites.clear(),
+      db.sessions.clear(),
+      db.archives.clear(),
+      db.syncItems.clear(),
+    ]);
     if (payload.rings?.length) await db.rings.bulkPut(payload.rings as never[]);
     if (payload.morphs?.length) await db.morphs.bulkPut(payload.morphs as never[]);
     if (payload.sites?.length) await db.sites.bulkPut(payload.sites as never[]);
     if (payload.sessions?.length) await db.sessions.bulkPut(payload.sessions as never[]);
+    if (payload.archives?.length) await db.archives.bulkPut(payload.archives as never[]);
+    if (payload.syncItems?.length) await db.syncItems.bulkPut(payload.syncItems as never[]);
   });
   return counts;
 }

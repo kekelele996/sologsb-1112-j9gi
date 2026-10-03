@@ -17,8 +17,12 @@ export interface RingRecord {
   speciesSci: string;
   /** 年龄 */
   age: BirdAge;
-  /** 环志日期 ISO */
+  /** 环志日期 ISO（本站捕获/记录日期，本站权威，中心档案不得覆盖） */
   ringDate: string;
+  /** 中心核准的原环志日期 ISO（比对命中后以中心档案为准，空 = 尚未经中心档案核对） */
+  originRingDate?: string;
+  /** 中心核准的原环志站 */
+  originStation?: string;
   /** 网号 */
   netNo: string;
   /** 网次 */

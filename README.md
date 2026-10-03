@@ -24,10 +24,11 @@ docker compose down
 | 框架 | Vue 3 + TypeScript（`<script setup>`） |
 | 构建 | Vite 6（`npm run build` 含 `vue-tsc --noEmit` 类型检查） |
 | UI | Element Plus 2 |
-| 路由 | Vue Router 4（5 条业务路由 + 404） |
-| 状态 | Pinia（ringStore / measureStore / siteStore / sessionStore） |
+| 路由 | Vue Router 4（6 条业务路由 + 404） |
+| 状态 | Pinia（ringStore / measureStore / siteStore / sessionStore / syncStore） |
 | 地图 | 高德地图 JS API（可选，按需动态加载）+ 本地 SVG 网格退化视图 |
 | 存储 | IndexedDB（Dexie，库名 `gbbirdring-db`） |
+| 测试 | Vitest（纯逻辑 + fake-indexeddb 的 store 端到端，`npm test`） |
 | 托管 | nginx:alpine（多阶段构建，SPA try_files + gzip） |
 
 ## 地图 key 说明（可选）
@@ -42,6 +43,7 @@ cd frontend
 npm install
 npm run dev      # http://localhost:21812
 npm run build    # 类型检查 + 生产构建
+npm test         # Vitest：比对规则与断点续核端到端
 ```
 
 ## 目录结构
@@ -70,13 +72,25 @@ npm run build    # 类型检查 + 生产构建
 | --- | --- | --- |
 | `/` | 统计台 | 鸟种数、初捕/重捕比、鸟点分布图、鸟种计数与生境分布 |
 | `/rings` | 环志记录 | 金属环号 + 彩环双段录入与自动查重，重复时提示并跳转历史记录 |
+| `/archive` | 中心档案比对 | 导入中心季度档案包逐只比对：站侧 / 中心侧双侧核验、断点续核、按权威边界幂等合并 |
 | `/measure` | 量度测量 | 6 项量度带单位与范围校验，与同鸟种历史均值比对给出偏离提示 |
 | `/sites` | 鸟点台账 | 地图 / SVG 网格双模式切换，表单拾取坐标即时落点，点位间距提示 |
 | `/sessions` | 调查批次 | 观测条件录入，关闭批次后统计鸟种数、初捕数与重捕数 |
 
 ## 数据存储说明
 
-- 全部数据存于浏览器 IndexedDB（Dexie，库名 `gbbirdring-db`），表：`rings`、`morphs`、`sites`、`sessions`、`meta`。
-- `db.version(1)` 建表声明索引；`db.version(2).upgrade(...)` 为环志表增加 `[speciesCn+ringDate]` 复合索引并回填历史彩环字段。升级前可用顶栏「导出备份」导出全量 JSON。
+- 全部数据存于浏览器 IndexedDB（Dexie，库名 `gbbirdring-db`），表：`rings`、`morphs`、`sites`、`sessions`、`archives`、`syncItems`、`meta`。
+- `db.version(1)` 建表声明索引；`db.version(2).upgrade(...)` 为环志表增加 `[speciesCn+ringDate]` 复合索引并回填历史彩环字段；`db.version(3)` 增加中心档案两张表与环志记录的中心核准字段（`originRingDate` / `originStation`，历史数据留空即可）。升级前可用顶栏「导出备份」导出全量 JSON。
 - 首次打开且表为空时写入示例数据（6 个鸟点、4 个调查批次、18 条环志记录与 14 条量度）。
 - 容器无状态：不使用数据库服务、不挂载命名卷，`docker compose down` 后数据仍留在浏览器中。
+
+## 中心档案比对规则（`/archive`）
+
+| 规则 | 落地方式 |
+| --- | --- |
+| 站台账只记本地捕获，中心按季度下发档案包 | 档案包为 JSON（`app = gbbirdring-archive`，含 `batchNo` / `quarter` / `records`），页面「下载示例档案」可获取样例 |
+| 鸟种、原环志日期以中心为准 | 合并只写 `speciesCn` / `speciesSci` / `originRingDate` / `originStation` 四个中心权威字段 |
+| 本站量度、鸟点生境、本站捕获日期不被覆盖 | `ringDate` / `netNo` / `siteId` / `status` 与 `morphs` 表不在合并字段内；站侧核验还会检查量度与生境是否齐备 |
+| 断网续核 | 每只分「站侧（本地材料）」「中心侧（联网核对）」两条结论，核完一只立即落库；已通过的一侧重跑自动跳过，失败侧可单独「重核」，页面有联网 / 断网开关模拟 |
+| 外站档案只登记不并账 | 本站台账没有的环号标为「外站档案」，无合并入口 |
+| 重捕次数不被多算 | 合并只用 `bulkPut` 覆盖既有台账行，绝不 add / delete，且条目合并是幂等的，再核再合并零新增变更（`npm test` 覆盖该链路） |
