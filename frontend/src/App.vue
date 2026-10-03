@@ -56,6 +56,7 @@ async function handleExport() {
         <el-menu-item index="/measure">量度测量</el-menu-item>
         <el-menu-item index="/sites">鸟点台账</el-menu-item>
         <el-menu-item index="/sessions">调查批次</el-menu-item>
+        <el-menu-item index="/reconcile">外站比对</el-menu-item>
       </el-menu>
     </el-aside>
     <el-container>

@@ -87,7 +87,7 @@ export const useRingStore = defineStore('ring', {
       return { record };
     },
 
-    async updateRing(id: string, patch: Partial<RingInput>) {
+    async updateRing(id: string, patch: Partial<RingRecord>) {
       const current = this.rings.find((record) => record.id === id);
       if (!current) return;
       const next: RingRecord = { ...current, ...patch };

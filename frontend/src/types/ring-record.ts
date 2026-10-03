@@ -25,6 +25,8 @@ export interface RingRecord {
   netRound: number;
   /** 状态：初捕 / 重捕 / 回收 */
   status: RingStatus;
+  /** 原环志日期（以环志中心下发档案为准，本站不自行填写；本站捕获日期仍用 ringDate） */
+  originalRingDate?: string;
   /** 环志人 */
   ringer: string;
   /** 鸟点 id */
